@@ -28,6 +28,7 @@ public class MainActivity extends Activity {
     final int MIC_PERMISSION = 102;
     final String PREFS = "maya_settings";
     final String KEY = "gemini_key";
+    final String HISTORY_KEY = "chat_history";
     final String MODEL = "gemini-3.8-flash";
 
     @Override
@@ -51,7 +52,7 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(Color.rgb(20, 16, 38));
 
         TextView title = new TextView(this);
-        title.setText("🌸 MAYA AI");
+        title.setText("🌸 TRISHA AI");
         title.setTextColor(Color.WHITE);
         title.setTextSize(27);
         title.setGravity(Gravity.CENTER);
@@ -86,7 +87,7 @@ public class MainActivity extends Activity {
         input = new EditText(this);
         input.setSingleLine(false);
         input.setMaxLines(3);
-        input.setHint("Maya se baat karo...");
+        input.setHint("Trisha se baat karo...");
         input.setTextColor(Color.WHITE);
         input.setHintTextColor(Color.LTGRAY);
         bar.addView(input, new LinearLayout.LayoutParams(0, -2, 1));
@@ -103,7 +104,10 @@ public class MainActivity extends Activity {
         send.setOnClickListener(v -> sendMessage());
 
         setContentView(root);
-        addMessage("Maya", "Hey! 🌸 Main Maya hoon. API Key set karke mujhse Hinglish mein baat karo.");
+        loadHistory();
+        if (messages.getChildCount() == 0) {
+            addMessage("Trisha", "Hey! 🌸 Main Trisha hoon. API Key set karke mujhse Hinglish mein baat karo.");
+        }
     }
 
     void keyDialog() {
@@ -114,14 +118,14 @@ public class MainActivity extends Activity {
         field.setText(getPreferences(0).getString(KEY, ""));
 
         new AlertDialog.Builder(this)
-            .setTitle("Maya AI Setup")
+            .setTitle("Trisha AI Setup")
             .setMessage("API key isi phone par save hogi. Use GitHub par share mat karna.")
             .setView(field)
             .setPositiveButton("Save", (d, w) -> {
                 String k = field.getText().toString().trim();
                 if (!k.isEmpty()) {
                     getPreferences(0).edit().putString(KEY, k).apply();
-                    addMessage("Maya", "API key phone par save ho gayi. Ab chat try karo 🌸");
+                    addMessage("Trisha", "API key phone par save ho gayi. Ab chat try karo 🌸");
                 }
             })
             .setNegativeButton("Cancel", null)
@@ -145,10 +149,10 @@ public class MainActivity extends Activity {
                     RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
             i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "hi-IN");
             i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "hi-IN");
-            i.putExtra(RecognizerIntent.EXTRA_PROMPT, "Maya se baat karo");
+            i.putExtra(RecognizerIntent.EXTRA_PROMPT, "Trisha se baat karo");
             startActivityForResult(i, VOICE_REQUEST);
         } catch (Exception e) {
-            addMessage("Maya", "Voice recognition is not available on this phone right now.");
+            addMessage("Trisha", "Voice recognition is not available on this phone right now.");
         }
     }
 
@@ -159,7 +163,7 @@ public class MainActivity extends Activity {
                 results[0] == PackageManager.PERMISSION_GRANTED) {
             openVoiceRecognizer();
         } else if (requestCode == MIC_PERMISSION) {
-            addMessage("Maya", "Voice use karne ke liye microphone permission allow karni hogi.");
+            addMessage("Trisha", "Voice use karne ke liye microphone permission allow karni hogi.");
         }
     }
 
@@ -183,7 +187,7 @@ public class MainActivity extends Activity {
 
         String apiKey = getPreferences(0).getString(KEY, "");
         if (apiKey.isEmpty()) {
-            addMessage("Maya", "Pehle upar API Key button se apni Gemini key save karo.");
+            addMessage("Trisha", "Pehle upar API Key button se apni Gemini key save karo.");
             keyDialog();
             return;
         }
@@ -195,10 +199,11 @@ public class MainActivity extends Activity {
             user.put("role", "user");
             user.put("parts", new JSONArray().put(new JSONObject().put("text", msg)));
             history.put(user);
+            saveHistory();
         } catch (Exception ignored) {}
 
         waiting = true;
-        addMessage("Maya", "Soch rahi hoon... 🌸");
+        addMessage("Trisha", "Soch rahi hoon... 🌸");
 
         new Thread(() -> {
             String answer;
@@ -217,7 +222,7 @@ public class MainActivity extends Activity {
                 JSONObject body = new JSONObject();
                 JSONObject instruction = new JSONObject();
                 instruction.put("parts", new JSONArray().put(new JSONObject().put(
-                    "text", "You are Maya, a natural, friendly AI companion. " +
+                    "text", "You are Trisha, a natural, friendly AI companion. " +
                     "Speak conversational Hinglish mixing Hindi and English naturally. " +
                     "Adapt your tone to the user's mood: be cheerful when appropriate, " +
                     "calm and caring when they are upset, playful when suitable, and " +
@@ -264,6 +269,7 @@ public class MainActivity extends Activity {
                         }
                         history = shorter;
                     }
+                    saveHistory();
                 }
                 c.disconnect();
             } catch (Exception e) {
@@ -275,12 +281,39 @@ public class MainActivity extends Activity {
                 waiting = false;
                 int count = messages.getChildCount();
                 if (count > 0) messages.removeViewAt(count - 1);
-                addMessage("Maya", reply);
+                addMessage("Trisha", reply);
                 if (speakReplies && ttsReady) {
                     tts.speak(reply, TextToSpeech.QUEUE_FLUSH, null, "maya_reply");
                 }
             });
         }).start();
+    }
+
+    void saveHistory() {
+        getPreferences(0).edit()
+            .putString(HISTORY_KEY, history.toString())
+            .apply();
+    }
+
+    void loadHistory() {
+        String saved = getPreferences(0).getString(HISTORY_KEY, "");
+        if (saved.isEmpty()) return;
+
+        try {
+            JSONArray stored = new JSONArray(saved);
+            history = stored;
+            for (int i = 0; i < stored.length(); i++) {
+                JSONObject item = stored.getJSONObject(i);
+                String role = item.optString("role", "");
+                JSONArray parts = item.optJSONArray("parts");
+                if (parts == null || parts.length() == 0) continue;
+                String text = parts.getJSONObject(0).optString("text", "");
+                if (text.isEmpty()) continue;
+                addMessage("user".equals(role) ? "Tum" : "Trisha", text);
+            }
+        } catch (Exception e) {
+            history = new JSONArray();
+        }
     }
 
     void addMessage(String who, String text) {
@@ -289,7 +322,7 @@ public class MainActivity extends Activity {
         bubble.setTextColor(Color.WHITE);
         bubble.setTextSize(16);
         bubble.setPadding(14, 12, 14, 12);
-        bubble.setBackgroundColor(who.equals("Maya")
+        bubble.setBackgroundColor(who.equals("Trisha")
             ? Color.rgb(74, 48, 100) : Color.rgb(42, 55, 85));
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
         p.setMargins(0, 7, 0, 7);
