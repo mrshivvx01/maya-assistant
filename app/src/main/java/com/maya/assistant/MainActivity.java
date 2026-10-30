@@ -181,12 +181,118 @@ public class MainActivity extends Activity {
         }
     }
 
+    boolean handleLocalCommand(String msg, String lowerMsg) {
+        try {
+            if (lowerMsg.contains("time batao") ||
+                lowerMsg.contains("samay batao") ||
+                lowerMsg.equals("what time is it")) {
+                String time = new java.text.SimpleDateFormat(
+                    "hh:mm a", java.util.Locale.getDefault()
+                ).format(new java.util.Date());
+                addMessage("Trisha", "Abhi time hai " + time);
+                return true;
+            }
+
+            if (lowerMsg.contains("youtube kholo")) {
+                startActivity(new Intent(Intent.ACTION_VIEW,
+                    android.net.Uri.parse("https:" + "/" + "/" + "www.youtube.com")));
+                addMessage("Trisha", "YouTube khol rahi hoon 🌸");
+                return true;
+            }
+
+            if (lowerMsg.startsWith("google par search karo ") ||
+                lowerMsg.startsWith("google pe search karo ")) {
+                String query = msg.substring(
+                    msg.toLowerCase(java.util.Locale.ROOT).indexOf("search karo") + 11
+                ).trim();
+                if (!query.isEmpty()) {
+                    startActivity(new Intent(Intent.ACTION_VIEW,
+                        android.net.Uri.parse("https:" + "/" + "/" +
+                            "www.google.com/search?q=" + android.net.Uri.encode(query))));
+                    addMessage("Trisha", "Google par search khol rahi hoon 🌸");
+                } else {
+                    addMessage("Trisha", "Google par kya search karna hai?");
+                }
+                return true;
+            }
+
+            if (lowerMsg.startsWith("whatsapp par message bhejo:") ||
+                lowerMsg.startsWith("whatsapp message bhejo:")) {
+                int colon = msg.indexOf(':');
+                String message = colon >= 0 ? msg.substring(colon + 1).trim() : "";
+                if (message.isEmpty()) {
+                    addMessage("Trisha", "WhatsApp par bhejne wala message ':' ke baad likho.");
+                    return true;
+                }
+                Intent share = new Intent(Intent.ACTION_SEND);
+                share.setType("text/plain");
+                share.putExtra(Intent.EXTRA_TEXT, message);
+                share.setPackage("com.whatsapp");
+                if (share.resolveActivity(getPackageManager()) != null) {
+                    startActivity(share);
+                    addMessage("Trisha", "WhatsApp khol rahi hoon. Ab contact chuno aur message check karke khud bhejo 🌸");
+                } else {
+                    addMessage("Trisha", "WhatsApp nahi mila. Kya WhatsApp install hai?");
+                }
+                return true;
+            }
+
+            if (lowerMsg.equals("settings kholo") ||
+                lowerMsg.equals("setting kholo") ||
+                lowerMsg.equals("phone settings kholo")) {
+                startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS));
+                addMessage("Trisha", "Phone Settings khol rahi hoon 🌸");
+                return true;
+            }
+
+            String appName = null;
+            if (lowerMsg.startsWith("app kholo ")) {
+                appName = msg.substring(10).trim();
+            } else if (lowerMsg.startsWith("open app ")) {
+                appName = msg.substring(9).trim();
+            } else if (lowerMsg.endsWith(" kholo") && lowerMsg.length() > 6) {
+                appName = msg.substring(0, msg.length() - 6).trim();
+            }
+
+            if (appName != null && !appName.isEmpty()) {
+                android.content.pm.PackageManager pm = getPackageManager();
+                for (android.content.pm.ApplicationInfo app :
+                        pm.getInstalledApplications(0)) {
+                    if (app.packageName.equals(getPackageName())) continue;
+                    String label = pm.getApplicationLabel(app).toString();
+                    if (label.toLowerCase(java.util.Locale.ROOT)
+                            .contains(appName.toLowerCase(java.util.Locale.ROOT))) {
+                        Intent launch = pm.getLaunchIntentForPackage(app.packageName);
+                        if (launch != null) {
+                            startActivity(launch);
+                            addMessage("Trisha", label + " khol rahi hoon 🌸");
+                            return true;
+                        }
+                    }
+                }
+                addMessage("Trisha", appName +
+                    " app nahi mili. App installed hai ya nahi, check karo.");
+                return true;
+            }
+        } catch (Exception e) {
+            addMessage("Trisha",
+                "Ye command abhi nahi chal paayi. App installed hai ya nahi, check karo.");
+            return true;
+        }
+        return false;
+    }
+
     void sendMessage() {
         if (waiting) return;
         String msg = input.getText().toString().trim();
         if (msg.isEmpty()) return;
 
         String lowerMsg = msg.toLowerCase(Locale.ROOT);
+        if (handleLocalCommand(msg, lowerMsg)) {
+            input.setText("");
+            return;
+        }
+
         if (lowerMsg.startsWith("yaad rakho:")) {
             String fact = msg.substring("yaad rakho:".length()).trim();
             if (fact.isEmpty()) {
