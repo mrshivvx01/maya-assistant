@@ -44,6 +44,8 @@ public class MainActivity extends Activity {
                     r == TextToSpeech.LANG_NOT_SUPPORTED) {
                     tts.setLanguage(Locale.US);
                 }
+                tts.setSpeechRate(0.92f);
+                tts.setPitch(1.0f);
             }
         });
 
@@ -385,7 +387,10 @@ public class MainActivity extends Activity {
 
                 JSONObject result = new JSONObject(buffer.toString("UTF-8"));
                 if (code < 200 || code >= 300) {
-                    answer = "Gemini API error (" + code + "). API key, model access, quota ya internet check karo.";
+                    JSONObject err = result.optJSONObject("error");
+                    String detail = err == null ? "" : err.optString("message", "");
+                    answer = "Gemini API error (" + code + ")" +
+                        (detail.isEmpty() ? "." : ": " + detail);
                 } else {
                     answer = result.getJSONArray("candidates")
                         .getJSONObject(0).getJSONObject("content")
